@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PETEAT Loyalty - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui;margin:40px;max-width:420px}
+    .box{padding:18px;border:1px solid #ddd;border-radius:12px}
+    input{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:10px;font-size:16px}
+    button{padding:12px 14px;border-radius:10px;border:0;cursor:pointer;font-size:16px}
+    .err{color:#b00020}
+    .muted{color:#666;font-size:13px}
+  </style>
+</head>
+<body>
+  <h2>PETEAT Loyalty – Login</h2>
+  <div class="box">
+    {% if error %}<p class="err"><b>{{ error }}</b></p>{% endif %}
+    <form method="post" action="/login">
+      <label>Utente</label>
+      <input name="username" required autocomplete="username">
+      <label>Password / PIN</label>
+      <input name="password" type="password" required autocomplete="current-password">
+      <button type="submit">Entra</button>
+    </form>
+    <p class="muted">Consiglio: cambia credenziali con variabili ambiente PETEAT_USER / PETEAT_PASS.</p>
+  </div>
+</body>
+</html>

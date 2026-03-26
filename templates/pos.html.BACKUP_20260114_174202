@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PETEAT Loyalty - Cassa</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui;margin:26px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+    .card{border:1px solid #ddd;border-radius:16px;padding:14px;min-width:320px;max-width:520px}
+    input,button{padding:12px;border-radius:12px;border:1px solid #ccc;font-size:16px}
+    button{border:0;cursor:pointer}
+    .ok{color:#0a7a2f}
+    .err{color:#b00020}
+    .big{font-size:22px;font-weight:800}
+    .muted{color:#666}
+    img{max-width:170px;border:1px solid #eee;border-radius:12px;padding:6px}
+    hr{border:0;border-top:1px solid #eee;margin:16px 0}
+    table{width:100%;border-collapse:collapse}
+    td{padding:6px 0;border-bottom:1px solid #f1f1f1;font-size:14px}
+    .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#f3f3f3;font-size:12px}
+    .warn{background:#fff3cd}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h2>PETEAT Loyalty – Cassa</h2>
+    <div>
+      <a href="/admin/export_customers.csv">Export clienti CSV</a> |
+      <a href="/logout">Esci</a>
+    </div>
+  </div>
+
+  {% if error %}<p class="err"><b>{{ error }}</b></p>{% endif %}
+
+  <div class="row">
+    <div class="card">
+      <h3>📠 Scan tessera</h3>
+      <form id="scanForm" method="post" action="/pos/lookup">
+        <input id="scanInput" name="q" placeholder="Scansiona PETEAT-000123" required
+               style="width:100%;font-size:20px;font-weight:700">
+      </form>
+      <p class="muted">Flusso: scan → Invio → scheda → importo € → Invio.</p>
+
+      <hr>
+
+      <h4>🧰 Setup tessere (solo prima volta)</h4>
+      <form method="post" action="/admin/preload_cards">
+        <div style="display:flex;gap:10px">
+          <input name="start" type="number" placeholder="Start (1)" value="1" style="width:50%">
+          <input name="end" type="number" placeholder="End (2000)" value="2000" style="width:50%">
+        </div>
+        <button type="submit" style="margin-top:10px">Precarica tessere nel DB</button>
+      </form>
+      <p class="muted">Se hai già precaricato, non succede nulla: salta quelle già presenti.</p>
+    </div>
+
+    <div class="card">
+      <h3>⚡ Operazioni punti</h3>
+
+      <form id="earnForm" method="post" action="/pos/earn">
+        <input id="earnCard" name="card_code" placeholder="Codice tessera (auto)" required style="width:100%">
+        <input id="earnEuro" name="euro_amount" type="number" step="0.01" placeholder="Importo €" required style="width:100%">
+        <input name="note" placeholder="Nota (opzionale)" style="width:100%">
+        <button id="earnSubmit" type="submit" style="margin-top:8px">Carica punti</button>
+      </form>
+
+      <hr>
+
+      <form id="redeemForm" method="post" action="/pos/redeem">
+        <input id="redeemCard" name="card_code" placeholder="Codice tessera (auto)" required style="width:100%">
+        <input id="redeemPoints" name="points" type="number" placeholder="Punti da spendere" required style="width:100%">
+        <input name="note" placeholder="Nota (opzionale)" style="width:100%">
+        <button type="submit" style="margin-top:8px">Spendi punti</button>
+      </form>
+
+      <p class="muted">Tasti: <b>ESC</b> torna allo scan • <b>F2</b> importo € • <b>F3</b> spendi punti</p>
+    </div>
+
+    <div class="card">
+      <h3>🆕 Assegna tessera (se non ancora attiva)</h3>
+      <form method="post" action="/pos/assign_card">
+        <input id="assignCard" name="card_code" placeholder="Scansiona tessera UNASSIGNED" required style="width:100%">
+        <div style="display:flex;gap:10px">
+          <input name="first_name" placeholder="Nome" required style="width:50%">
+          <input name="last_name" placeholder="Cognome" required style="width:50%">
+        </div>
+        <input name="phone" placeholder="Telefono" required style="width:100%">
+        <label><input type="checkbox" name="consent_marketing"> Consenso marketing</label><br><br>
+        <button type="submit">Assegna e attiva tessera</button>
+      </form>
+      <p class="muted">Uso tipico: scan tessera nuova → compili nome/telefono → attiva.</p>
+    </div>
+  </div>
+
+  {% if result %}
+  <hr>
+  <div class="row">
+    <div class="card">
+      <h3>📄 Scheda</h3>
+
+      {% if result.message %}
+        <p class="ok"><b>{{ result.message }}</b></p>
+      {% endif %}
+
+      {% if result.card %}
+        <p><span class="pill {% if result.card.status != 'ACTIVE' %}warn{% endif %}">Tessera: <b>{{ result.card.card_code }}</b> • Stato: <b>{{ result.card.status }}</b></span></p>
+      {% endif %}
+
+      {% if result.customer %}
+        <p class="big">{{ result.customer.first_name }} {{ result.customer.last_name }}</p>
+        <p class="muted">Tel: {{ result.customer.phone }}</p>
+
+        <p class="big">Saldo: {{ result.balance }} punti</p>
+        <p>⏳ In scadenza (30 gg): <b>{{ result.expiring_30 }}</b> punti</p>
+      {% else %}
+        <p class="muted">Questa tessera non risulta ancora assegnata a un cliente.</p>
+        <p class="muted">Usa “Assegna tessera” (pannello a destra).</p>
+      {% endif %}
+    </div>
+
+    {% if result.qr %}
+    <div class="card">
+      <h3>📷 QR Tessera</h3>
+      <img src="data:image/png;base64,{{ result.qr }}" alt="QR">
+      <p class="muted">Opzionale: utile per backup/riconoscimento.</p>
+    </div>
+    {% endif %}
+
+    {% if result.activity and result.customer %}
+    <div class="card">
+      <h3>🧾 Ultimi movimenti</h3>
+      <table>
+        {% for a in result.activity %}
+          <tr>
+            <td><b>{{ a.kind }}</b></td>
+            <td>{{ a.points }}</td>
+            <td class="muted">
+              {% if a.euro %}€{{ a.euro }}{% endif %}
+              {% if a.exp %}<br>Scade: {{ a.exp[:10] }}{% endif %}
+            </td>
+            <td class="muted">{{ a.at[:19].replace('T',' ') }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+      <p class="muted">Regola: 1€=1 punto • Scadenza 12 mesi • Spesa FIFO.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+<script>
+  // Keep focus on scan input for scanner-first workflow
+  const scanInput = document.getElementById("scanInput");
+  const scanForm = document.getElementById("scanForm");
+  function keepFocus(){ scanInput?.focus(); }
+  keepFocus();
+  document.addEventListener("click", keepFocus);
+
+  // If scanner sends TAB instead of ENTER
+  scanInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") { e.preventDefault(); scanForm.submit(); }
+  });
+
+  // Hotkeys
+  const earnEuro = document.getElementById("earnEuro");
+  const redeemPoints = document.getElementById("redeemPoints");
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "F2") { e.preventDefault(); earnEuro?.focus(); }
+    if (e.key === "F3") { e.preventDefault(); redeemPoints?.focus(); }
+    if (e.key === "Escape") { e.preventDefault(); scanInput?.focus(); }
+  });
+
+  // If a card is open, prefill card_code fields and focus € amount (NiceCard-like)
+  {% if result and result.card %}
+    const currentCard = "{{ result.card.card_code }}";
+    const earnCard = document.getElementById("earnCard");
+    const redeemCard = document.getElementById("redeemCard");
+    const assignCard = document.getElementById("assignCard");
+    if (earnCard) earnCard.value = currentCard;
+    if (redeemCard) redeemCard.value = currentCard;
+    if (assignCard) assignCard.value = currentCard;
+
+    {% if result.customer %}
+      // customer active => focus on € to add points quickly
+      earnEuro?.focus();
+    {% else %}
+      // unassigned card => focus on assign form name
+      document.querySelector("input[name='first_name']")?.focus();
+    {% endif %}
+  {% endif %}
+</script>
+</body>
+</html>

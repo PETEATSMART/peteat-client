@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PETEAT Loyalty – Cassa</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#f6f7fb}
+    header{background:#0b2a4a;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+    header a{color:#fff;text-decoration:none;margin-left:12px;opacity:.9}
+    .wrap{max-width:1100px;margin:18px auto;padding:0 14px}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
+    .card{background:#fff;border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.06);padding:14px}
+    h2{margin:0 0 10px 0;font-size:18px}
+    h3{margin:12px 0 8px 0;font-size:15px}
+    .muted{color:#6b7280;font-size:13px}
+    input,select,button{width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;font-size:14px;box-sizing:border-box}
+    button{cursor:pointer;border:none;background:#0b2a4a;color:#fff;font-weight:700}
+    button.secondary{background:#111827}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .ok{background:#ecfdf5;border:1px solid #10b981;color:#065f46;padding:10px 12px;border-radius:12px;margin-top:10px}
+    .err{background:#fef2f2;border:1px solid #ef4444;color:#7f1d1d;padding:10px 12px;border-radius:12px;margin-top:10px}
+    .pill{display:inline-block;background:#eef2ff;color:#3730a3;padding:4px 10px;border-radius:999px;font-size:12px;margin-right:6px}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+    .hr{height:1px;background:#eee;margin:10px 0}
+    .list{display:grid;gap:8px;margin-top:10px}
+    .item{border:1px solid #eee;border-radius:12px;padding:10px}
+    .item .top{display:flex;justify-content:space-between;gap:10px}
+  </style>
+</head>
+<body>
+<header>
+  <div><b>PETEAT Loyalty – Cassa</b></div>
+  <div>
+    <a href="/admin/export_customers">Export clienti CSV</a>
+    <a href="/logout">Esci</a>
+  </div>
+</header>
+
+<div class="wrap">
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+  <div class="grid">
+    <!-- LEFT -->
+    <div class="card">
+      <h2>📠 Scan tessera</h2>
+      <div class="muted">Flusso: scan → Invio → scheda → importo € → Invio.</div>
+
+      <form method="post" action="/pos/lookup" autocomplete="off" style="margin-top:10px">
+        <input id="scanInput" type="text" name="card_code" placeholder="Scansiona barcode (es. PETEAT-000001)" required autofocus>
+      </form>
+
+      <div class="hr"></div>
+
+      <h3>⚡ Operazioni punti</h3>
+      <div class="row">
+        <form method="post" action="/pos/earn">
+          <input type="hidden" name="card_code" value="{{ result.card.card_code if result and result.card else '' }}">
+          <input id="earnEuro" type="number" name="euro_amount" step="0.01" min="0" placeholder="Importo €" required>
+          <input type="text" name="note" placeholder="Note (prodotti acquistati)" style="margin-top:8px">
+
+	  <div style="height:8px"></div>
+          <button type="submit">Carica punti</button>
+        </form>
+
+        <form method="post" action="/pos/redeem">
+          <input type="hidden" name="card_code" value="{{ result.card.card_code if result and result.card else '' }}">
+          <input id="redeemPts" type="number" name="points" step="1" min="0" placeholder="Punti da spendere" required>
+          <div style="height:8px"></div>
+          <button class="secondary" type="submit">Spendi punti</button>
+        </form>
+      </div>
+
+      <div class="muted" style="margin-top:8px">Tasti: ESC torna allo scan • F2 importo € • F3 spendi punti</div>
+
+      {% if result %}
+      <div class="hr"></div>
+      <h3>📄 Scheda</h3>
+
+      {% if result.message %}<div class="ok">{{ result.message }}</div>{% endif %}
+
+      {% if result.card %}
+        <div class="pill mono">Tessera: {{ result.card.card_code }}</div>
+        <div class="pill">Stato: {{ result.card.status }}</div>
+      {% endif %}
+
+      {% if result.customer %}
+        <div style="margin-top:10px">
+          <b>{{ result.customer.first_name }} {{ result.customer.last_name }}</b><br>
+          Tel: {{ result.customer.phone }}<br>
+          Email: {{ result.customer.email }}<br>
+          Indirizzo: {{ result.customer.address }}<br>
+          Nascita: {{ result.customer.birth_date }}<br>
+          <div style="margin-top:6px"><b>Saldo:</b> {{ result.balance }} punti</div>
+          <div class="muted">⏳ In scadenza (30 gg): {{ result.expiring_30 }} punti</div>
+        </div>
+      {% else %}
+        <div class="err" style="margin-top:10px">Questa tessera non risulta ancora assegnata a un cliente. Usa “Assegna tessera”.</div>
+      {% endif %}
+{% for a in result.activity %}
+<div class="item">
+  <div class="top">
+    <div>
+      <b>{{ a.kind }}</b> <span class="mono">{{ a.points }}</span>
+      {% if a.euro %}€{{ a.euro }}{% endif %}
+{% if result.activity and result.customer %}
+  <div class="hr"></div>
+  <h3>🧾 Ultimi movimenti</h3>
+
+  <div class="list">
+    {% for a in result.activity %}
+      <div class="item">
+        <div class="top">
+          <div>
+            <b>{{ a.kind }}</b>
+            <span class="mono">{{ a.points }}</span>
+            {% if a.euro %}€{{ a.euro }}{% endif %}
+          </div>
+          <div class="muted">{{ a.at[:19].replace('T',' ') }}</div>
+        </div>
+
+        {% if a.notes %}
+          <div class="muted">📝 {{ a.notes }}</div>
+        {% endif %}
+
+        <div class="muted">{% if a.exp %}Scade: {{ a.exp[:10] }}{% endif %}</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="muted" style="margin-top:8px">
+    Regola: 1€=1 punto • Scadenza 12 mesi • Spesa FIFO.
+  </div>
+{% endif %}
+

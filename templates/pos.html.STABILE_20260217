@@ -1,0 +1,168 @@
+<input name="points" ...
+  <label>Punti</label>
+  <input type="number" name="points">
+</div>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>PETEAT POS</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f6f6f6; }
+    .wrap { max-width:1100px; margin:20px auto; display:flex; gap:20px; }
+    .card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); width:100%; }
+    h2,h3 { margin-top:0 }
+    input, button { width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; }
+    button { background:#2e7d32; color:#fff; font-weight:bold; cursor:pointer; }
+    button:hover { opacity:.9 }
+    .muted { color:#666; font-size:13px; }
+    .hr { height:1px; background:#eee; margin:20px 0; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { padding:8px; border-bottom:1px solid #eee; text-align:left; }
+    .ok { background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:10px; }
+    .err { background:#fdecea; padding:10px; border-radius:8px; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+
+<!-- SINISTRA -->
+<div class="card">
+
+  <h2>🧾 Apri tessera</h2>
+
+{% if success %}
+  <div class="ok">{{ success }}</div>
+{% endif %}
+
+{% if request.query_params.get('auto') == '1' %}
+    ⭐ Saldo punti: <strong>{{ balance_points or 0 }}</strong><br>
+  💶 Valore € campagna: <strong>{{ "%.2f"|format(redeemable_eur or 0) }} €</strong><br>
+  🏷 Campagna attiva: <strong>{{ campaign_name }}</strong>
+</div>
+<div class="ok">
+    ✅ Punti calcolati automaticamente —
+    Campagna: <strong>{{ request.query_params.get('camp') }}</strong>
+    ({{ request.query_params.get('rate') }} pt/€)
+  </div>
+{% endif %}
+
+  <form method="post" action="/pos/lookup">
+    <input name="card_code" placeholder="Scansiona tessera (PETEAT-000001)" required autofocus>
+    <div style="height:10px"></div>
+    <button type="submit">Apri tessera</button>
+  </form>
+
+  {% if opened_customer %}
+
+    <div class="hr"></div>
+
+    <h3>👤 Cliente</h3>
+
+    <div class="ok">
+      <strong>{{ opened_customer.first_name }} {{ opened_customer.last_name }}</strong><br>
+      📞 {{ opened_customer.phone }}<br>
+      {% if opened_customer.email %}✉️ {{ opened_customer.email }}<br>{% endif %}
+      Tessera:
+      <strong>{{ opened_customer.card_code }}</strong>
+    </div>
+
+    <div class="hr"></div>
+    <div class="ok">
+     ⭐ Saldo punti: <strong>{{ balance_points or 0 }}</strong><br>
+     💶 Valore € campagna: <strong>{{ "%.2f"|format(redeemable_eur or 0) }} €</strong><br>
+     🏷 Campagna attiva: <strong>{{ campaign_name }}</strong>
+   </div>
+{% if expiring_points and expiring_points > 0 %}
+  <div class="err">
+    ⚠️ Attenzione: <strong>{{ expiring_points }}</strong> punti in scadenza il
+    <strong>{{ expiring_date }}</strong>
+  </div>
+{% endif %}
+
+    <h3>🛒 Storico acquisti</h3>
+
+    {% if purchases %}
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Importo €</th>
+            <th>Punti</th>
+            <th>Nota</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in purchases %}
+          <tr>
+            <td>{{ p.purchase_date }}</td>
+            <td>{{ "%.2f"|format(p.purchase_amount_eur or 0) }}</td>
+            <td>{{ p.purchase_points or 0 }}</td>
+            <td>{{ p.purchase_note or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="muted">Nessun acquisto registrato</div>
+    {% endif %}
+
+    <div class="hr"></div>
+
+    <h3>➕ Nuovo acquisto</h3>
+
+    <form method="post" action="/pos/add_purchase">
+      <input type="hidden" name="card_code" value="{{ opened_customer.card_code }}">
+
+      <input name="amount_eur" placeholder="Importo € (es. 29.90)" required>
+      <div style="height:8px"></div>
+
+      <input name="note" placeholder="Nota (opzionale)">
+      <div style="height:12px"></div>
+
+      <button type="submit">💾 Salva acquisto</button>
+    </form>
+
+  {% endif %}
+
+</div>
+
+<!-- DESTRA -->
+<div class="card">
+
+  <h2>🔎 Cerca cliente</h2>
+
+  <form method="post" action="/pos/search_customer">
+    <input name="query" placeholder="Telefono, email, nome o cognome" required>
+    <button type="submit">Cerca cliente</button>
+  </form>
+
+  {% if search_results %}
+    <div class="hr"></div>
+   {% for c in search_results %}
+  <div class="ok" style="cursor:pointer">
+    <a href="/pos/open_customer/{{ c.id }}" style="text-decoration:none; color:inherit; display:block;">
+      <strong>{{ c.first_name }} {{ c.last_name }}</strong><br>
+      📞 {{ c.phone }}<br>
+      Tessera: {{ c.card_code or "—" }}
+    </a>
+  </div>
+{% endfor %}
+  {% endif %}
+
+  <div class="hr"></div>
+
+  <a href="/admin/export_customers">Scarica CSV clienti + acquisti</a>
+<h3>📤 Export</h3>
+  <a href="/admin/export_customers">Scarica CSV clienti + acquisti</a>
+<div style="height:10px"></div>
+<a href="/admin/campaigns">⚙️ Gestione campagne</a>
+
+</div>
+
+</div>
+
+</body>
+</html>
+

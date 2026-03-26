@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campagne - PETEAT</title>
+  <style>
+    body { font-family: -apple-system, system-ui, Arial; margin: 24px; background:#f6f6f6; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .card { background:#fff; border-radius:14px; padding:18px; box-shadow:0 6px 20px rgba(0,0,0,.06); }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:10px 8px; border-bottom:1px solid #eee; text-align:left; }
+    th { background:#fafafa; }
+    .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; }
+    .on { background:#e7f6ea; }
+    .off { background:#f1f1f1; }
+    .btn { display:inline-block; padding:8px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+    .btn-primary { background:#1f7a3e; border-color:#1f7a3e; color:#fff; }
+    .row { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .muted { color:#666; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <div>
+          <h2 style="margin:0">🏷 Campagne promozionali</h2>
+          <div class="muted">Gestisci conversione punti → € e punti per €</div>
+        </div>
+        <div>
+          <a class="btn" href="/pos">← Torna al POS</a>
+        </div>
+      </div>
+
+      <div style="height:14px"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Stato</th>
+            <th>Nome</th>
+            <th>€ → Punti</th>
+            <th>Step Punti</th>
+            <th>Valore €</th>
+            <th>Azione</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in campaigns %}
+          <tr>
+            <td>
+              {% if c["is_active"] == 1 %}
+                <span class="badge on">ATTIVA</span>
+              {% else %}
+                <span class="badge off">---</span>
+              {% endif %}
+            </td>
+            <td><strong>{{ c["name"] }}</strong></td>
+            <td>{{ c["eur_to_points"] }}</td>
+            <td>{{ c["points_step"] }}</td>
+            <td>{{ "%.2f"|format(c["eur_value"] or 0) }} €</td>
+            <td>
+              {% if c["is_active"] != 1 %}
+                <form method="post" action="/admin/campaigns/activate" style="margin:0">
+                  <input type="hidden" name="campaign_id" value="{{ c['id'] }}">
+                  <button class="btn btn-primary" type="submit">Attiva</button>
+                </form>
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div style="height:18px"></div>
+
+      <h3 style="margin:0 0 10px 0">➕ Crea nuova campagna</h3>
+      <form method="post" action="/admin/campaigns/create">
+        <div class="row">
+          <input class="btn" style="flex:1" name="name" placeholder="Nome (es. PASQUA 2026)" required>
+          <input class="btn" style="width:130px" name="eur_to_points" placeholder="€→Punti" value="1" required>
+          <input class="btn" style="width:130px" name="points_step" placeholder="Step punti" value="100" required>
+          <input class="btn" style="width:130px" name="eur_value" placeholder="Valore €" value="5" required>
+          <button class="btn btn-primary" type="submit">Crea</button>
+        </div>
+        <div class="muted" style="margin-top:8px">
+          Esempio: 1€=1 punto, ogni 100 punti → 5€ di sconto.
+        </div>
+      </form>
+
+    </div>
+  </div>
+</body>
+</html>
+

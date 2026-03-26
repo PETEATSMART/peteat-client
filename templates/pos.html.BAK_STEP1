@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>PETEAT Loyalty – Cassa</title>
+  <style>
+    body { font-family: system-ui; background:#f5f7fb; margin:0; }
+    .wrap { max-width:1200px; margin:20px auto; display:flex; gap:20px; }
+    .card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 10px 25px rgba(0,0,0,.08); flex:1; }
+    h2,h3 { margin-top:0; }
+    input,button { width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid #ccc; }
+    button { background:#0f2747; color:#fff; border:none; cursor:pointer; font-weight:600; }
+    .muted { color:#6b7280; font-size:14px; }
+    .hr { height:1px; background:#e5e7eb; margin:20px 0; }
+    .list .item { padding:10px; border:1px solid #e5e7eb; border-radius:8px; margin-top:8px; cursor:pointer; }
+    .list .item:hover { background:#f1f5f9; }
+    .code { font-weight:700; color:#0f2747; }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <!-- SINISTRA -->
+  <div class="card">
+    <h2>🧾 Scan tessera</h2>
+    <input id="scanInput" placeholder="Scansiona barcode (es. PETEAT-000001)">
+  </div>
+
+  <!-- DESTRA -->
+  <div class="card">
+
+    <h2>🔎 Cerca cliente</h2>
+    <div class="muted">Telefono, email, nome o cognome</div>
+
+    <form method="post" action="/pos/search_customer">
+      <input name="query" placeholder="Telefono, email, nome o cognome" required>
+      <button type="submit">Cerca cliente</button>
+    </form>
+
+    {% if search_results %}
+      <div class="hr"></div>
+      <h3>📋 Risultati</h3>
+
+      <div class="list">
+        {% for c in search_results %}
+          <div class="item"
+               onclick="document.getElementById('scanInput').value='{{ c.card_code }}'">
+            <div><b>{{ c.first_name }} {{ c.last_name }}</b></div>
+            <div class="muted">{{ c.phone }} – {{ c.email }}</div>
+            <div class="code">{{ c.card_code }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="hr"></div>
+
+    <h3>📤 Export clienti</h3>
+    <div class="muted">CSV per gestione contatti</div>
+    <a href="/admin/export_customers">Scarica CSV</a>
+
+  </div>
+</div>
+
+<script>
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape'){
+      const s = document.getElementById('scanInput');
+      s.value=''; s.focus();
+    }
+  });
+</script>
+
+</body>
+</html>
+

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestione Campagne - PETEAT</title>
+
+<style>
+body{font-family:-apple-system,system-ui,Arial;background:#f6f6f6;margin:0;padding:22px}
+.wrap{max-width:980px;margin:0 auto}
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 6px 20px rgba(0,0,0,.06)}
+h2{margin:0 0 6px 0}
+.muted{color:#666;font-size:14px}
+.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;margin-top:14px}
+th,td{padding:10px 8px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
+th{background:#fafafa}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px}
+.on{background:#e7f6ea}
+.off{background:#f1f1f1}
+.btn{display:inline-block;padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#f5f5f5;text-decoration:none;color:#000}
+.btn-primary{background:#1f7a3e;border-color:#1f7a3e;color:#fff}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input{padding:10px 10px;border-radius:10px;border:1px solid #ddd;font-size:14px}
+.w-name{min-width:240px;flex:1}
+.w-sm{width:130px}
+.hr{height:1px;background:#eee;margin:16px 0}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+<div class="card">
+
+<div class="top">
+<div>
+<h2>🏷 Gestione campagne promozionali</h2>
+<div class="muted">Configura conversione €→punti e punti→€ (wallet/sconto).</div>
+</div>
+<div>
+<a class="btn" href="/pos">← Torna al POS</a>
+</div>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Stato</th>
+<th>Nome</th>
+<th>€→Punti</th>
+<th>Step punti</th>
+<th>Valore €</th>
+<th>Scadenza</th>
+<th>Azioni</th>
+</tr>
+</thead>
+
+<tbody>
+{% for c in campaigns %}
+<tr>
+
+<td>
+{% if c["is_active"] == 1 %}
+<span class="badge on">ATTIVA</span>
+{% else %}
+<span class="badge off">—</span>
+{% endif %}
+</td>
+
+<td><strong>{{ c["name"] }}</strong></td>
+<td>{{ c["eur_to_points"] }}</td>
+<td>{{ c["points_step"] }}</td>
+<td>{{ "%.2f"|format(c["eur_value"] or 0) }} €</td>
+
+<td>
+{% if c["expires_at"] %}
+{{ c["expires_at"][:10] }}
+{% else %}
+—
+{% endif %}
+</td>
+
+<td>
+{% if c["is_active"] != 1 %}
+<a class="btn btn-primary" href="/admin/campaigns/activate/{{ c['id'] }}">Attiva</a>
+{% endif %}
+
+<a class="btn" href="/admin/campaigns/delete/{{ c['id'] }}"
+onclick="return confirm('Sei sicuro di voler eliminare questa campagna?')">
+Elimina
+</a>
+</td>
+
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<div class="hr"></div>
+
+<h3>➕ Crea nuova campagna</h3>
+
+<form method="post" action="/admin/campaigns/create">
+<div class="row">
+<input class="w-name" name="name" placeholder="Nome (es. PASQUA 2026)" required>
+<input class="w-sm" name="eur_to_points" placeholder="€→Punti" value="1" required>
+<input class="w-sm" name="points_step" placeholder="Step punti" value="100" required>
+<input class="w-sm" name="eur_value" placeholder="Valore €" value="5" required>
+<input class="w-sm" type="date" name="expires_at">
+<button class="btn btn-primary" type="submit">Crea</button>
+</div>
+<div class="muted" style="margin-top:8px">
+Esempio: 1€=1 punto, ogni 100 punti → 5€ di wallet/sconto.
+</div>
+</form>
+
+</div>
+</div>
+</body>
+</html>
+

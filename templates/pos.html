@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>PETEAT POS</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f6f6f6; margin:0; }
+    .wrap { max-width:1200px; margin:20px auto; display:flex; gap:20px; align-items:flex-start; }
+    .card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    h2,h3 { margin-top:0 }
+    .muted { color:#666; font-size:13px; }
+    .hr { height:1px; background:#eee; margin:18px 0; }
+
+    /* inputs default full width */
+    input, button { padding:10px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box; }
+    input { width:100%; }
+    button { width:100%; background:#2e7d32; color:#fff; font-weight:bold; cursor:pointer; border:none; }
+    button:hover { opacity:.92 }
+
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { padding:8px; border-bottom:1px solid #eee; text-align:left; }
+    .ok { background:#e8f5e9; padding:10px; border-radius:8px; margin-bottom:10px; }
+    .err { background:#fdecea; padding:10px; border-radius:8px; margin-bottom:10px; }
+
+    /* layout colonne */
+    .col-left { width:35%; }
+    .col-center { width:40%; }
+    .col-right { width:25%; }
+
+    /* row per bottone + checkbox */
+    .row { display:flex; gap:10px; align-items:center; }
+    .row .btn { width:auto; min-width:220px; }
+    .row .usepoints { display:flex; gap:8px; align-items:center; font-size:14px; white-space:nowrap; }
+    .row .usepoints input { width:auto; }
+
+    /* storico: max 6 righe + scroll */
+    .history-box { max-height:240px; overflow-y:auto; border:1px solid #eee; border-radius:10px; padding:10px; }
+    .history-box table th { position:sticky; top:0; background:#fff; }
+    .small { font-size:12px; color:#666; }
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- SINISTRA -->
+  <div class="card col-left">
+    <h2>🧾 Apri tessera</h2>
+
+    {% if error %}
+      <div class="err">{{ error }}</div>
+    {% endif %}
+
+    {% if success %}
+      <div class="ok">{{ success }}</div>
+    {% endif %}
+
+    {% if request.query_params.get('auto') == '1' %}
+      <div class="ok">
+        ✅ Punti calcolati automaticamente —
+        Campagna: <strong>{{ request.query_params.get('camp') }}</strong>
+        ({{ request.query_params.get('rate') }} pt/€)
+      </div>
+    {% endif %}
+
+    <form method="post" action="/pos/lookup">
+      <input name="card_code" placeholder="Scansiona tessera (PETEAT-000001)" required autofocus>
+      <div style="height:10px"></div>
+      <button type="submit">Apri tessera</button>
+    </form>
+
+    <div class="hr"></div>
+
+    <h3>➕ Nuovo cliente</h3>
+    <form method="post" action="/pos/assign_card">
+  
+      <input name="first_name" placeholder="Nome" required>
+      <div style="height:6px"></div>
+
+      <input name="last_name" placeholder="Cognome" required>
+      <div style="height:6px"></div>
+
+      <input name="phone" placeholder="Telefono" required>
+      <div style="height:6px"></div>
+
+      <input name="email" placeholder="Email (opzionale)">
+      <div style="height:10px"></div>
+
+      <div style="height:6px"></div>
+      <label>Data di nascita</label>
+      <input type="date" name="dob">
+
+      <div style="height:6px"></div>
+      <label>Sesso</label>
+      <select name="sex">
+        <option value="">—</option>
+        <option value="M">M</option>
+        <option value="F">F</option>
+      </select>
+
+      <div style="height:6px"></div>
+      <label>Tipo animale</label>
+      <select name="pet_type">
+        <option value="">—</option>
+        <option value="CANE">Cane</option>
+        <option value="GATTO">Gatto</option>
+      </select>
+
+      <div style="height:6px"></div>
+      <label>Note animale</label>
+      <input name="pet_notes" placeholder="Es. cane piccola taglia / Maine Coon">
+
+      <button type="submit">➕ Crea cliente e assegna tessera</button>
+    </form>
+  </div>
+
+  <!-- CENTRO -->
+  <div class="card col-center">
+    <h3>👤 Cliente</h3>
+
+    {% if opened_customer %}
+      <div class="ok">
+        <strong>{{ opened_customer.first_name }} {{ opened_customer.last_name }}</strong><br>
+        📞 {{ opened_customer.phone }}<br>
+        {% if opened_customer.email %}✉️ {{ opened_customer.email }}<br>{% endif %}
+        Tessera: <strong>{{ opened_customer.card_code }}</strong>
+      </div>
+
+      <div class="ok">
+        ⭐ <strong>Saldo punti:</strong> {{ balance_points }}<br>
+        💶 <strong>Valore € campagna:</strong> {{ "%.2f"|format(redeemable_eur or 0) }} €<br>
+        🎫 <strong>Campagna attiva:</strong> {{ campaign_name }}
+        {% if expiring_points and expiring_points > 0 %}
+          <div class="small" style="margin-top:6px;">
+            ⏳ Punti in scadenza (30gg): <strong>{{ expiring_points }}</strong>
+            {% if expiring_date %} — entro {{ expiring_date }}{% endif %}
+          </div>
+        {% endif %}
+      </div>
+
+      <h3 style="margin-top:18px;">🛒 Storico acquisti</h3>
+      <div class="history-box">
+        {% if purchases and purchases|length > 0 %}
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Importo €</th>
+                <th>Punti</th>
+                <th>Nota</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in purchases[:6] %}
+                <tr>
+                  <td>{{ p.purchase_date }}</td>
+                  <td>{{ "%.2f"|format(p.purchase_amount_eur or 0) }}</td>
+                  <td>{{ p.purchase_points or 0 }}</td>
+                  <td>{{ p.purchase_note or "" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if purchases|length > 6 %}
+            <div class="small" style="margin-top:8px;">⬇️ Scorri con il mouse per vedere gli altri acquisti</div>
+          {% endif %}
+        {% else %}
+          <div class="muted">Nessun acquisto registrato</div>
+        {% endif %}
+      </div>
+
+      <h3 style="margin-top:18px;">➕ Nuovo acquisto</h3>
+
+      <form method="post" action="/pos/add_purchase">
+        <input type="hidden" name="card_code" value="{{ opened_customer.card_code }}">
+
+        <input name="amount_eur" placeholder="Importo € (es. 29.90)" required>
+        <div style="height:8px"></div>
+
+        <input name="note" placeholder="Nota (opzionale)">
+        <div style="height:12px"></div>
+
+          <label style="display:flex; gap:8px; align-items:center; font-size:14px;">
+    <input type="checkbox" name="use_points" value="1">
+
+<button type="submit">💾 Salva acquisto</button>
+<div style="display:flex; align-items:center; justify-content:space-between; gap:14px;">
+  <button type="submit" style="flex:1;">💾 Salva acquisto</button>
+
+  {% if redeemable_eur and redeemable_eur > 0 %}
+    <label style="display:flex; gap:8px; align-items:center; font-size:14px; white-space:nowrap; margin:0;">
+      <input type="checkbox" name="use_points" value="1">
+      🎁 Usa punti (max {{ "%.2f"|format(redeemable_eur) }} €)
+    </label>
+  {% endif %}
+</div>
+     </form>
+
+      <div class="muted">Seleziona un cliente per registrare l’acquisto.</div>
+    {% endif %}
+  </div>
+
+  <!-- DESTRA -->
+  <div class="card col-right">
+    <h2>🔎 Cerca cliente</h2>
+
+    <form method="post" action="/pos/search_customer">
+      <input name="query" placeholder="Telefono, email, nome o cognome" required>
+      <div style="height:10px"></div>
+      <button type="submit">Cerca cliente</button>
+    </form>
+
+    {% if search_results %}
+      <div class="hr"></div>
+      {% for c in search_results %}
+        <div class="ok" style="cursor:pointer">
+          <a href="/pos/open_customer/{{ c.id }}" style="text-decoration:none; color:inherit; display:block;">
+            <strong>{{ c.first_name }} {{ c.last_name }}</strong><br>
+            📞 {{ c.phone }}<br>
+            Tessera: {{ c.card_code or "—" }}
+          </a>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="hr"></div>
+
+    <h3>📤 Export</h3>
+    <a href="/admin/export_customers">Scarica CSV clienti + acquisti</a>
+
+    <div class="hr"></div>
+
+    <a href="/admin/campaigns">⚙️ Gestione campagne</a>
+  </div>
+
+</div>
+
+</body>
+</html>
+
